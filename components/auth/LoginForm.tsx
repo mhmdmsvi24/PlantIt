@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 const formSchema = z.object({
@@ -34,6 +35,7 @@ const formSchema = z.object({
 
 const LoginForm = () => {
   const router = useRouter();
+  const [errorMessage, setErrorMessage] = useState("");
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -43,8 +45,31 @@ const LoginForm = () => {
     },
   });
 
-  const handleSubmit = (data: z.infer<typeof formSchema>) => {
-    router.push("/");
+  const handleSubmit = async (data: z.infer<typeof formSchema>) => {
+    const { email, password } = data;
+
+    try {
+      const response = await fetch("http://localhost:3333/auth/signin", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Login failed");
+      }
+
+      const tokens = await response.json(); // Assuming your backend returns tokens
+      localStorage.setItem("access_token", tokens.access_token); // Store access token
+      localStorage.setItem("refresh_token", tokens.refresh_token); // Store refresh token if needed
+
+      router.push("/"); // Redirect after successful login
+    } catch (error) {
+      console.error(error);
+      setErrorMessage("Login failed. Please check your credentials.");
+    }
   };
 
   return (
@@ -54,6 +79,7 @@ const LoginForm = () => {
         <CardDescription>Log into your account with your credentials</CardDescription>
       </CardHeader>
       <CardContent className="space-y-2">
+        {errorMessage && <div className="text-red-500">{errorMessage}</div>}
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
             <FormField
@@ -66,7 +92,7 @@ const LoginForm = () => {
                   </FormLabel>
                   <FormControl>
                     <Input
-                      className="bg-slate-100 dark:bg-slate-500 border-0 focus-visible:ring-0 text-black dark:text-white focus-visible: ring-offset-0"
+                      className="bg-slate-100 dark:bg-slate-500 border-0 focus-visible:ring-0 text-black dark:text-white focus-visible:ring-offset-0"
                       placeholder="Enter Email"
                       {...field}
                     />
@@ -87,7 +113,7 @@ const LoginForm = () => {
                   <FormControl>
                     <Input
                       type="password"
-                      className="bg-slate-100 dark:bg-slate-500 border-0 focus-visible:ring-0 text-black dark:text-white focus-visible: ring-offset-0"
+                      className="bg-slate-100 dark:bg-slate-500 border-0 focus-visible:ring-0 text-black dark:text-white focus-visible:ring-offset-0"
                       placeholder="Enter Password"
                       {...field}
                     />
